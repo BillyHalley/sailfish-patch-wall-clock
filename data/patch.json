@@ -1,0 +1,8 @@
+{
+    "name": "Wall Clock",
+    "description": "Create a wall clock accessible from the Jolla Clock, clicking on the time",
+    "category": "clock",
+	"infos": {
+        "maintainer": "BillyHalley"
+	}
+}
