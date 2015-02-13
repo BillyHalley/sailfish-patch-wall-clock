@@ -1,5 +1,5 @@
 diff --git a/usr/share/jolla-clock/pages/MainPage.qml b/usr/share/jolla-clock/pages/MainPage.qml
-index 2abd931..3e6e2b5 100644
+index 2abd931..817a3ba 100644
 --- a/usr/share/jolla-clock/pages/MainPage.qml
 +++ b/usr/share/jolla-clock/pages/MainPage.qml
 @@ -204,6 +204,15 @@ Page {
@@ -20,10 +20,10 @@ index 2abd931..3e6e2b5 100644
  }
 diff --git b/usr/share/jolla-clock/pages/main/WallClockItem.qml b/usr/share/jolla-clock/pages/main/WallClockItem.qml
 new file mode 100644
-index 0000000..d4a7a7c
+index 0000000..c099af6
 --- /dev/null
 +++ b/usr/share/jolla-clock/pages/main/WallClockItem.qml
-@@ -0,0 +1,104 @@
+@@ -0,0 +1,103 @@
 +import QtQuick 2.0
 +import Sailfish.Silica 1.0
 +import org.nemomobile.time 1.0
@@ -61,7 +61,6 @@ index 0000000..d4a7a7c
 +                } else {
 +                    result = result.replace("s", seconds)
 +                }
-+ 
 +
 +               return Format.formatDate(time, Format.TimeValueTwentyFourHours) + ":" + result
 +            } else {
@@ -130,10 +129,10 @@ index 0000000..d4a7a7c
 +}
 diff --git b/usr/share/jolla-clock/pages/main/WallClockPage.qml b/usr/share/jolla-clock/pages/main/WallClockPage.qml
 new file mode 100644
-index 0000000..a3d6910
+index 0000000..10217aa
 --- /dev/null
 +++ b/usr/share/jolla-clock/pages/main/WallClockPage.qml
-@@ -0,0 +1,97 @@
+@@ -0,0 +1,119 @@
 +/************************************************************************************
 +**                                                                                 **
 +** Created by Antonio Mancini                                                      **
@@ -144,31 +143,39 @@ index 0000000..a3d6910
 +import QtQuick 2.0
 +import Sailfish.Silica 1.0
 +import Sailfish.Silica.private 1.0
++import Sailfish.Silica.theme 1.0
++import org.nemomobile.lipstick 0.1
 +import org.nemomobile.time 1.0
 +import com.jolla.settings 1.0
 +import com.jolla.settings.system 1.0
 +import org.nemomobile.systemsettings 1.0
++import "../widgets"
 +
 +Page {
 +    id:page
 +    allowedOrientations: Orientation.All
++
 +    property int lpmTimeout: 15
++    property bool lpmEnabled: false
++
++    property string mainColor: lpmEnabled ? Theme.highlightColor : Theme.primaryColor
++
++    backNavigation: lpmEnabled ? false : true
 +
 +    onStatusChanged: {
-+        if (status === PageStatus.Activating) {
++        if (status === PageStatus.Active) {
 +            displaySettings.inhibitMode = DisplaySettings.InhibitStayOn
 +            lpmTimer.restart()
-+        } else if (status === PageStatus.Deactivating) {
++        } else {
 +            displaySettings.inhibitMode = DisplaySettings.InhibitOff
 +            lpmTimer.stop()
 +        }
-+
 +    }
 +
 +    Rectangle {
 +        id: blackBackground
 +        anchors.fill: parent
-+        visible: false
++        visible: lpmEnabled ? true : false
 +        color: "black"
 +    }
 +
@@ -179,16 +186,15 @@ index 0000000..a3d6910
 +        MouseArea {
 +            anchors.fill: parent
 +            onClicked: {
-+                clock.color = Theme.primaryColor
-+                pullDownMenu.visible = true
-+                blackBackground.visible = false
-+                page.backNavigation = true
-+                lpmTimer.restart()
++		if ( lpmEnabled ) 
++		    lpmEnabled = !lpmEnabled
++		lpmTimer.restart()
 +            }
 +        }
 +
 +        PullDownMenu {
 +            id: pullDownMenu
++            visible: lpmEnabled ? false : true
 +            MenuItem {
 +                text: qsTr("Settings")
 +                onClicked:{
@@ -199,15 +205,11 @@ index 0000000..a3d6910
 +                }
 +            }
 +        }
++
 +        Timer {
 +            id: lpmTimer
 +            interval: lpmTimeout*1000
-+            onTriggered: {
-+                clock.color = Theme.highlightColor
-+                pullDownMenu.visible = false
-+                blackBackground.visible = true
-+                backNavigation = false
-+            }
++            onTriggered: lpmEnabled = true
 +        }
 +
 +        WallClockItem {
@@ -217,6 +219,7 @@ index 0000000..a3d6910
 +            anchors.verticalCenter: parent.verticalCenter
 +            time: wallClock.time
 +            primaryPixelSize: page.orientation === Orientation.Portrait || page.orientation ===  Orientation.PortraitInverted ? 124/480 * screen.width : 0.5*page.height
++	    color: mainColor
 +
 +            WallClock {
 +                id: wallClock
@@ -224,19 +227,37 @@ index 0000000..a3d6910
 +            }
 +        }
 +
++        Label {
++	    id: date
++            anchors.top: clock.bottom
++            anchors.horizontalCenter: clock.horizontalCenter
++            color: mainColor
++            text: {
++                var dateString = Format.formatDate(wallClock.time, Format.DateFull)
++                return dateString.charAt(0).toUpperCase() + dateString.substr(1)
++            }
++        }
++
++        BatteryIndicator {
++            id: batteryIndicator
++            textColor: mainColor
++            anchors {
++                bottom: parent.bottom
++                bottomMargin: Theme.paddingLarge
++            }
++        }
++
 +        DisplaySettings {
 +            id: displaySettings
 +        }
-+
 +    }
 +}
-+
 diff --git b/usr/share/jolla-clock/pages/main/WallClockSettings.qml b/usr/share/jolla-clock/pages/main/WallClockSettings.qml
 new file mode 100644
-index 0000000..e3289ae
+index 0000000..25d4123
 --- /dev/null
 +++ b/usr/share/jolla-clock/pages/main/WallClockSettings.qml
-@@ -0,0 +1,113 @@
+@@ -0,0 +1,107 @@
 +import QtQuick 2.0
 +import Sailfish.Silica 1.0
 +import com.jolla.settings 1.0
@@ -244,24 +265,23 @@ index 0000000..e3289ae
 +import org.nemomobile.systemsettings 1.0
 +
 +Dialog {
++
 +    property int lpmTimeout
 +
-+        function timeoutIndex(value) {
-+            for (var i = 0; i < timeoutModel.count; ++i) {
-+                if (value <= timeoutModel.get(i).value) {
-+                    return i
-+                }
++    function timeoutIndex(value) {
++        for (var i = 0; i < timeoutModel.count; ++i) {
++            if (value <= timeoutModel.get(i).value) {
++                return i
 +            }
-+            return timeoutModel.count-1
 +        }
++        return timeoutModel.count-1
++    }
 +
-+        onLpmTimeoutChanged: dimCombo.currentIndex = timeoutIndex(lpmTimeout)
++    onLpmTimeoutChanged: dimCombo.currentIndex = timeoutIndex(lpmTimeout)
 +
-+        Component.onCompleted: {
-+            dimCombo.currentIndex = timeoutIndex(lpmTimeout)
-+        }
-+
-+
++    Component.onCompleted: {
++        dimCombo.currentIndex = timeoutIndex(lpmTimeout)
++    }
 +
 +    SilicaFlickable {
 +
@@ -315,10 +335,7 @@ index 0000000..e3289ae
 +
 +            width: parent.width
 +
-+            DialogHeader {
-+                //% "Display"
-+                title: "LowPowerMode Settings" 
-+            }
++            DialogHeader { title: "LowPowerMode Settings" }
 +
 +            ComboBox {
 +                id: dimCombo
@@ -337,7 +354,6 @@ index 0000000..e3289ae
 +            }
 +        }
 +    }
-+
 +    
 +    DisplaySettings {
 +        id: displaySettings
@@ -348,5 +364,121 @@ index 0000000..e3289ae
 +            lpmTimeout = lpmTimeout
 +        }
 +    }
-+
 +}
+diff --git b/usr/share/jolla-clock/pages/widgets/BatteryIndicator.qml b/usr/share/jolla-clock/pages/widgets/BatteryIndicator.qml
+new file mode 100644
+index 0000000..a65155f
+--- /dev/null
++++ b/usr/share/jolla-clock/pages/widgets/BatteryIndicator.qml
+@@ -0,0 +1,111 @@
++/****************************************************************************
++**
++** Copyright (C) 2013 Jolla Ltd.
++** Contact: Vesa Halttunen <vesa.halttunen@jollamobile.com>
++**
++****************************************************************************/
++
++import QtQuick 2.0
++import QtGraphicalEffects 1.0
++import org.freedesktop.contextkit 1.0
++import Sailfish.Silica 1.0
++import Sailfish.Silica.theme 1.0
++
++Item {
++    id: batteryStatusIndicator
++    height: batteryStatusIndicatorText.baselineOffset - (batteryStatusIndicatorText.contentHeight - batteryStatusIndicatorText.baselineOffset)
++
++    property variant textColor: Theme.primaryColor
++    property alias icon: batteryStatusIndicatorImage.source
++    property alias text: batteryStatusIndicatorText.text
++
++    ContextProperty {
++        id: batteryChargePercentageContextProperty
++        key: "Battery.ChargePercentage"
++        onValueChanged: batteryStatusIndicator.setIcon()
++    }
++
++    ContextProperty {
++        id: batteryIsChargingContextProperty
++        key: "Battery.IsCharging"
++        onValueChanged: batteryStatusIndicator.setIcon()
++    }
++
++    ContextProperty {
++        id: systemPowerSaveModeContextProperty
++        key: "System.PowerSaveMode"
++        onValueChanged: batteryStatusIndicator.setIcon()
++    }
++
++    Image {
++        id: batteryStatusIndicatorImage
++        anchors {
++            left: parent.left
++            bottom: parent.bottom
++            bottomMargin: -Math.round(Theme.paddingSmall/2)
++        }
++        source: "image://theme/icon-status-battery"
++    }
++
++    ColorOverlay {
++        anchors.fill: batteryStatusIndicatorImage
++        source: batteryStatusIndicatorImage
++        color: textColor
++    }
++
++    Text {
++        id: batteryStatusIndicatorText
++        anchors {
++            left: batteryStatusIndicatorImage.right
++            baseline: parent.bottom
++        }
++        font {
++            family: Theme.fontFamilyHeading
++            pixelSize: Theme.fontSizeHuge
++        }
++        text: batteryChargePercentageContextProperty.value === undefined ? "0" : ("" + batteryChargePercentageContextProperty.value)
++        color: textColor
++    }
++
++    Text {
++        id: batteryStatusIndicatorPercent
++        anchors {
++            leftMargin: Math.round(Theme.paddingSmall/2)
++            left: batteryStatusIndicatorText.right
++            baseline: batteryStatusIndicatorText.baseline
++        }
++        text: "%"
++        font.bold: true
++        color: textColor
++        opacity: 0.5
++    }
++
++    function setIcon() {
++        if (batteryIsChargingContextProperty.value) {
++            batteryStatusIndicatorImage.source = "image://theme/icon-status-charge"
++        } else {
++            if (batteryChargePercentageContextProperty.value < 5) {
++                batteryStatusIndicatorImage.source = "image://theme/icon-status-battery-warning"
++            } else {
++                batteryStatusIndicatorImage.source = systemPowerSaveModeContextProperty.value ? "image://theme/icon-status-powersave" : "image://theme/icon-status-battery"
++            }
++        }
++    }
++
++    Connections {
++        target: statusArea;
++        onRecentlyOnDisplayChanged: {
++            if (statusArea.recentlyOnDisplay) {
++                batteryChargePercentageContextProperty.subscribe()
++                batteryIsChargingContextProperty.subscribe()
++                systemPowerSaveModeContextProperty.subscribe()
++                batteryStatusIndicator.setIcon()
++            } else {
++                batteryChargePercentageContextProperty.unsubscribe()
++                batteryIsChargingContextProperty.unsubscribe()
++                systemPowerSaveModeContextProperty.unsubscribe()
++            }
++        }
++    }
++}
++

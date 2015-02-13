@@ -14,7 +14,7 @@ Name:       wall-clock
 %{?qtc_builddir:%define _builddir %qtc_builddir}
 Summary:    Wall Clock
 Version:    0.1
-Release:    1
+Release:    2
 Group:      Applications/Productivity
 License:    GPLv2+
 BuildArch:  noarch
